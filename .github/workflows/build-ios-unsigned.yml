@@ -1,0 +1,108 @@
+name: Build Unsigned iOS IPA
+
+# 这个仓库只有 README 和这个工作流，源码在私密仓库里。
+#
+# 产物**不往这里传**：GitHub 的 artifact 继承仓库可见性，公开仓库的产物
+# 谁都能下载，没有单独的访问控制。所以改成发到私密仓库的 Release —— 那里
+# 只有仓库拥有者看得到。这也是这个仓库存在的唯一理由：借公开仓库的免费
+# macOS 额度，同时不让产物落到公开的地方。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build unsigned IPA
+    runs-on: macos-15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          repository: mleafish/tomato-reader-privacy
+          token: ${{ secrets.SOURCE_TOKEN }}
+          path: source
+
+      - name: Test bookstore bridge behavior
+        working-directory: source
+        run: node --test ios/bookstore-bridge.test.cjs
+
+      - name: Test login WebView behavior
+        working-directory: source
+        run: node --test ios/platform-login.test.cjs
+
+      - name: Test comment pagination behavior
+        working-directory: source
+        run: node --test ios/comment-pagination.test.cjs
+
+      - name: Test segment comment behavior
+        working-directory: source
+        run: node --test ios/segment-comment.test.cjs
+
+      - name: Test bookstore tag taxonomy
+        working-directory: source
+        run: node --test ios/mall-taxonomy.test.cjs
+
+      - name: Test bookstore recommendation ranking
+        working-directory: source
+        run: |
+          xcrun swiftc -O \
+            ios/App/App/MallRecommender.swift \
+            ios/mall-recommender-test/main.swift \
+            -o "$RUNNER_TEMP/mall-recommender-test"
+          "$RUNNER_TEMP/mall-recommender-test"
+
+      - name: Build without code signing
+        working-directory: source
+        run: |
+          # 编译路径会进二进制，而 CI 的工作目录名 = 仓库名。这里把真实路径
+          # 重写成中性前缀，免得分发的 IPA 里一 strings 就搜到仓库名。
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$PWD/.build" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY='' \
+            PROVISIONING_PROFILE_SPECIFIER='' \
+            SWIFT_COMPILATION_MODE=wholemodule \
+            OTHER_SWIFT_FLAGS='$(inherited) -file-prefix-map $PWD=/src' \
+            OTHER_CFLAGS='$(inherited) -fdebug-prefix-map=$PWD=/src' \
+            clean build
+
+      - name: Package unsigned IPA
+        working-directory: source
+        run: |
+          APP_PATH="$PWD/.build/Build/Products/Release-iphoneos/TomatoReader.app"
+          test -d "$APP_PATH"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/TomatoReader.app
+          rm -rf Payload/TomatoReader.app/_CodeSignature
+          strip -S Payload/TomatoReader.app/TomatoReader || true
+          # 兜底：产物里不该出现仓库名。搜带连字符的形式 —— 包名是
+          # com.tomato.reader、应用名是 TomatoReader，都不带连字符，
+          # 所以命中就说明编译路径漏出来了。
+          if strings -a Payload/TomatoReader.app/TomatoReader | grep -qi "tomato-reader-privacy"; then
+            echo "产物里仍然能找到仓库名，先别分发"; exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent Payload tomato-reader-unsigned.ipa
+
+      # 产物发到私密仓库的 Release，不留在这个公开仓库里。
+      # 用同一个 latest 标签覆盖，所以永远只有一个最新包，不会堆积。
+      - name: Publish IPA to the private repository
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        run: |
+          gh release view latest --repo mleafish/tomato-reader-privacy >/dev/null 2>&1 \
+            || gh release create latest --repo mleafish/tomato-reader-privacy \
+                 --title "Latest build" --notes "每个构建覆盖这个 release 里的包"
+          gh release upload latest tomato-reader-unsigned.ipa \
+            --repo mleafish/tomato-reader-privacy --clobber
+          echo "已发布到私密仓库的 latest release"
