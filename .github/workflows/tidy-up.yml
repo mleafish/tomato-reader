@@ -1,0 +1,24 @@
+name: Tidy up
+
+on:
+  workflow_run:
+    workflows: ["Build Unsigned iOS IPA"]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  tidy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove the finished build, and older tidy runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SELF: ${{ github.run_id }}
+        run: |
+          gh api -X DELETE "repos/$REPO/actions/runs/${{ github.event.workflow_run.id }}" || true
+          gh api "repos/$REPO/actions/runs?per_page=50" \
+            --jq ".workflow_runs[] | select(.name == \"Tidy up\" and (.id | tostring) != \"$SELF\") | .id" \
+            | while read -r id; do gh api -X DELETE "repos/$REPO/actions/runs/$id" || true; done
