@@ -92,3 +92,22 @@ jobs:
                  --title "Latest build" --notes "Replaced on every build."
           gh release upload latest tomato-reader-unsigned.ipa \
             --repo mleafish/tomato-reader-privacy --clobber
+
+      - name: Publish IPA to Gitee
+        working-directory: source
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          API=https://gitee.com/api/v5/repos/mjhyy/tomato-reader-privacy
+          release_id=$(curl -fsS "$API/releases?access_token=$GITEE_TOKEN&per_page=1" | jq -r '.[0].id // empty')
+          if [ -z "$release_id" ]; then
+            release_id=$(curl -fsS -X POST "$API/releases" \
+              -d "access_token=$GITEE_TOKEN" -d "tag_name=latest" \
+              -d "name=Latest build" -d "body=Replaced on every build." | jq -r '.id')
+          fi
+          for old in $(curl -fsS "$API/releases/$release_id/attach_files?access_token=$GITEE_TOKEN" | jq -r '.[].id'); do
+            curl -fsS -o /dev/null -X DELETE "$API/releases/$release_id/attach_files/$old?access_token=$GITEE_TOKEN"
+          done
+          curl -fsS -o /dev/null -X POST "$API/releases/$release_id/attach_files" \
+            -F "access_token=$GITEE_TOKEN" -F "file=@tomato-reader-unsigned.ipa"
+          echo "published to gitee"
