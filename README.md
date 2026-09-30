@@ -22,9 +22,9 @@
 - 🌙 **自动阅读** —— 按设定速度自动翻页
 
 ## 预览
-![resized 3](https://imgur.la/images/2026/09/30/resized-3.png)
-![resized 2](https://imgur.la/images/2026/09/30/resized-2.png)
-![resized 1](https://imgur.la/images/2026/09/30/resized-1.png)
+![resized resized 1](https://imgur.la/images/2026/09/30/resized-resized-1.png)
+![resized resized 2](https://imgur.la/images/2026/09/30/resized-resized-2.png)
+![resized resized 3](https://imgur.la/images/2026/09/30/resized-resized-3.png)
 
 ## 声明
 
