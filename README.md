@@ -23,8 +23,8 @@
 
 ## 预览
 ![image](1.png)
-![alt text](https://github.com/mleafish/tomato-reader/main/2.png?raw=true)
-![alt text](https://github.com/mleafish/tomato-reader/main/3.png?raw=true)
+![image](2.png)
+![image](3.png)
 
 ## 声明
 
