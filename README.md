@@ -22,7 +22,9 @@
 - 🌙 **自动阅读** —— 按设定速度自动翻页
 
 ## 预览
-
+![alt text](https://github.com/mleafish/tomato-reader/main/1.png?raw=true)
+![alt text](https://github.com/mleafish/tomato-reader/main/2.png?raw=true)
+![alt text](https://github.com/mleafish/tomato-reader/main/3.png?raw=true)
 
 ## 声明
 
