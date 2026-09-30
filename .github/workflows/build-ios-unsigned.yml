@@ -4,6 +4,14 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    # 只有这个文件自己变了才构建。
+    #
+    # 原来是无条件 push 就构建，于是改个 README 也会跑一次 —— 白白烧掉
+    # macOS 额度，而且每次跑完还会多一条运行记录。
+    # 这个仓库里没有源码（源码在私密仓库），所以「push 就构建」在这儿
+    # 本来就没有意义：想构建就手动跑，或者改这个文件。
+    paths:
+      - '.github/workflows/build-ios-unsigned.yml'
 
 permissions:
   contents: read
